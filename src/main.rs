@@ -1,18 +1,34 @@
+use clap::Parser;
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use std::{error::Error, io};
+use std::{io, path::Path};
 use tui::{
     backend::{Backend, CrosstermBackend},
-    layout::{Alignment, Constraint, Direction, Layout},
-    style::{Color, Style},
+    layout::{Alignment, Layout, Constraint, Direction},
     widgets::{Block, BorderType, Borders},
     Frame, Terminal,
 };
+use tracing::info;
 
-fn main() -> Result<(), Box<dyn Error>> {
+use tgit::{Args, CmdPwd, ShellCommand};
+// use tgit::GitStatus;
+
+fn main() -> anyhow::Result<()> {
+    // Log to stdout (if you run with `RUST_LOG=debug`).
+    tracing_subscriber::fmt::init();
+
+    // set work dir
+    let cmd_pwd = CmdPwd::new();
+    let curr_dir = CmdPwd::exec_for_output(cmd_pwd.cmd(), &[""])?;
+    let args = Args::parse();
+    let work_dir = Path::new(&curr_dir.trim())
+        .join(args.path_parser()?).as_path().canonicalize()?;
+
+    info!("curr_dir:{}", work_dir.to_string_lossy());
+
     // setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -65,30 +81,30 @@ fn ui<B: Backend>(f: &mut Frame<B>) {
         .border_type(BorderType::Rounded);
     f.render_widget(block, size);
 
+    let font_h = 3_u16;
     let chunks = Layout::default()
-        .direction(Direction::Horizontal)
+        .direction(Direction::Vertical)
         .margin(1)
-        .constraints([Constraint::Percentage(40), Constraint::Percentage(60)].as_ref())
+        .constraints(
+            [
+                Constraint::Length(font_h),
+                Constraint::Length(f.size().height - font_h)
+            ]
+            .as_ref())
         .split(f.size());
 
-    // left inner block
-    let left_chunks = Layout::default()
-        .direction(Direction::Vertical)
-        .constraints([Constraint::Percentage(70), Constraint::Percentage(30)].as_ref())
-        .split(chunks[0]);
+    let work_dir = Block::default()
+        .borders(Borders::ALL)
+        .title("work dir")
+        .title_alignment(Alignment::Left)
+        .border_type(BorderType::Rounded);
+    f.render_widget(work_dir, chunks[0]);
 
-    // top left block with all default borders
-    let block = Block::default().title("With borders").borders(Borders::ALL);
-    f.render_widget(block, left_chunks[0]);
-
-    // Bottom left block
-    let block = Block::default()
-        .title("With styled borders")
-        .border_style(Style::default().fg(Color::Cyan))
-        .borders(Borders::ALL);
-    f.render_widget(block, left_chunks[1]);
-
-    // right block
-    let right_block = Block::default().title("Useless").borders(Borders::ALL);
-    f.render_widget(right_block, chunks[1]);
+    // let paragraph = Paragraph::new(Span::styled(
+    //     app.url.as_str(),
+    //     Style::default().add_modifier(Modifier::BOLD),
+    // ))
+    // .block(Block::default().borders(Borders::ALL).title("HelloGitHub"))
+    // .alignment(tui::layout::Alignment::Left);
+    // f.render_widget(paragraph, chunks[0]);
 }
