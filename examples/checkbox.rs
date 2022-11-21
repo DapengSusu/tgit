@@ -10,7 +10,7 @@ use std::{
 use tui::{
     backend::{Backend, CrosstermBackend},
     style::{Color, Modifier, Style},
-    text::{Span, Spans},
+    text::Spans,
     widgets::{Block, Borders, List, ListItem, ListState},
     Frame, Terminal,
 };
@@ -80,9 +80,10 @@ impl<'a> App<'a> {
         App {
             items: StatefulList::with_items(vec![
                 (false, "[_]".to_string(), "item1"),
-                (false, "[_]".to_string(), "item1"),
-                (true, "[*]".to_string(), "item1"),
-                (false, "[_]".to_string(), "item1")
+                (false, "[_]".to_string(), "item2"),
+                (true, "[*]".to_string(), "item3"),
+                (false, "[_]".to_string(), "item4"),
+                (false, "[_]".to_string(), "item5"),
             ])
         }
     }
@@ -96,9 +97,10 @@ impl<'a> App<'a> {
         self
     }
 
-    fn update_icon(&mut self, id:usize, is_active: bool) {
-        self.items.items[id].0 = is_active;
-        self.items.items[id].1 = Self::header(is_active).to_string() + self.items.items[id].2;
+    fn active(&mut self, id:usize) {
+        let is_active = self.items.items[id].0;
+        self.items.items[id].0 = !is_active;
+        self.items.items[id].1 = Self::header(!is_active).to_string() + self.items.items[id].2;
     }
 
     fn header(is_active: bool) -> &'a str {
@@ -152,7 +154,7 @@ fn run_app<B: Backend>(
                 KeyCode::Up => app.items.previous(),
                 KeyCode::Enter => {
                     if let Some(i) = app.items.index() {
-                        app.update_icon(i, true);
+                        app.active(i);
                     }
                 },
                 _ => {}
@@ -162,20 +164,12 @@ fn run_app<B: Backend>(
 }
 
 fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
-    // Iterate through all elements in the `items` app and append some debug text to it.
-    let len = app.items.items.len();
     let items: Vec<ListItem> = app
         .items
         .items
         .iter()
         .map(|i| {
-            let mut lines = vec![Spans::from(&i.1[..])];
-            for _ in 0..len {
-                lines.push(Spans::from(Span::styled(
-                    &i.1,
-                    Style::default(),
-                )));
-            }
+            let lines = vec![Spans::from(&i.1[..])];
             ListItem::new(lines).style(Style::default().fg(Color::Black).bg(Color::White))
         })
         .collect();
@@ -187,8 +181,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut App) {
             Style::default()
                 .bg(Color::LightGreen)
                 .add_modifier(Modifier::BOLD),
-        )
-        .highlight_symbol("");
+        );
 
     // We can now render the item list
     f.render_stateful_widget(items, f.size(), &mut app.items.state);
