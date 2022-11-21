@@ -1,68 +1,106 @@
 
+use std::fmt::Display;
+
 use tui::{
-    buffer::Buffer,
-    layout::Rect,
-    style::Style,
-    widgets::Widget,
+    style::Style, text::Span, widgets::Widget,
 };
 
-pub struct CheckBox<'a> {
+pub struct CheckBox {
+    /// 头部，显示为[*]或[_]，默认显示[_]
+    icon: String,
     /// 文本
     text: String,
+    /// 头部左上角位置
+    pos: (f64, f64),
     /// 是否被激活，被激活显示为[*]，否则显示为[_]
-    is_active: (bool, &'a str),
+    is_active: bool,
     /// 是否被选中
     is_picked: bool,
     /// 样式
     style: Style,
 }
 
-impl<'a> Default for CheckBox<'a> {
-    fn default() -> Self {
+impl Default for CheckBox {
+    fn default() -> CheckBox {
         CheckBox {
-            text: "null".to_string(),
-            is_active: (false, "[_]"),
+            icon: "[_]".to_string(),
+            text: "null checkbox".to_string(),
+            pos: (0_f64, 0_f64),
+            is_active: false,
             is_picked: false,
             style: Style::default(),
         }
     }
 }
 
-impl<'a> CheckBox<'a> {
-    pub fn new(text: &str) -> Self {
+impl CheckBox {
+    pub fn new(text: String) -> CheckBox {
         CheckBox {
-            text: text.to_string(),
+            text,
             ..Default::default()
         }
     }
-    pub fn text(&mut self, text: &str) {
-        self.text = text.to_string();
+
+    pub fn text(mut self, text: String) -> CheckBox {
+        self.text = text;
+
+        self
     }
 
-    pub fn active(&mut self, is_active: bool) {
-        self.is_active.0 = is_active;
-        self.is_active.1 = Self::active_display(is_active);
+    pub fn pos(mut self, x: f64, y: f64) -> CheckBox {
+        self.pos.0 = x;
+        self.pos.1 = y;
+
+        self
     }
 
-    pub fn picked(&mut self, is_picked: bool) {
+    pub fn active(mut self, is_active: bool) -> CheckBox {
+        self.is_active = is_active;
+        self.icon = Self::icon(is_active);
+
+        self
+    }
+
+    pub fn picked(mut self, is_picked: bool) -> CheckBox {
         self.is_picked = is_picked;
+
+        self
     }
 
-    pub fn style(&mut self, style: Style) {
+    pub fn style(mut self, style: Style) -> CheckBox {
         self.style = style;
+
+        self
     }
 
-    fn active_display(is_active: bool) -> &'a str {
+    pub fn update_icon(&mut self, is_active: bool) {
+        self.is_active = is_active;
+        self.icon = Self::icon(is_active);
+    }
+
+    fn icon(is_active: bool) -> String{
         if is_active {
-            "[*]"
+            "[*]".to_string()
         } else {
-            "[_]"
+            "[_]".to_string()
         }
     }
 }
 
-impl<'a> Widget for CheckBox<'a> {
-    fn render(self, area: Rect, buf: &mut Buffer) {
-        buf.set_string(area.left(), area.top(), self.is_active.1.to_string() + &self.text, self.style);
+impl Display for CheckBox {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}{}", self.icon, self.text)
+    }
+}
+
+impl<'a> From<Span<'a>> for CheckBox {
+    fn from(s: Span<'a>) -> Self {
+        CheckBox::default().text(String::from(s.content))
+    }
+}
+
+impl Widget for CheckBox {
+    fn render(self, area: tui::layout::Rect, buf: &mut tui::buffer::Buffer) {
+        buf.set_string(area.left(), area.top(), self.text, self.style);
     }
 }
